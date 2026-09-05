@@ -1,5 +1,5 @@
 import { DerivWS, roundStake } from "./deriv";
-import { CONTRACTS, type ContractDefId, type SwitchMode } from "./contracts";
+import { CONTRACTS, DEFAULT_DURATIONS, DEFAULT_MULTIPLIERS, type ContractDefId, type SwitchMode } from "./contracts";
 
 export type SpeedMode = "tick" | "normal";
 export type TradeState = "idle" | "buying" | "awaiting";
@@ -13,6 +13,8 @@ export type BotConfig = {
   speed: SpeedMode;
   selected: ContractDefId[];
   barriers: Record<ContractDefId, number>;
+  durations?: Record<ContractDefId, number>;
+  multipliers?: Record<ContractDefId, number>;
   switchMode: SwitchMode;
   switchValue: number;
 };
@@ -70,6 +72,7 @@ export class BotEngine {
     payout: number;
     type: string;
     barrier: number;
+    kind: "digit" | "updown" | "reset" | "multiplier";
     contractId?: number | undefined;
   } | null = null;
 
@@ -198,8 +201,13 @@ export class BotEngine {
     this.digits = [...this.digits, digit].slice(-200);
     this.ev.onTick(digit, priceStr);
 
-    // Settle pending trade on THIS tick (every-tick mode settles locally)
-    if (this.cfg.speed === "tick" && this.tradeState === "awaiting" && this.pending) {
+    // Settle pending trade on THIS tick (every-tick mode settles locally, digits only)
+    if (
+      this.cfg.speed === "tick" &&
+      this.tradeState === "awaiting" &&
+      this.pending &&
+      this.pending.kind === "digit"
+    ) {
       const { buyPrice, payout, type, barrier } = this.pending;
       const isWin =
         type === "DIGITUNDER" ? digit < barrier : type === "DIGITOVER" ? digit > barrier : digit !== barrier;
@@ -220,7 +228,9 @@ export class BotEngine {
 
     const def = this.activeDef();
     const stake = roundStake(this.currentStake);
-    const barrier = this.cfg.barriers[def.id] ?? def.barrier.safest;
+    const barrier = this.cfg.barriers[def.id] ?? def.barrier?.safest ?? 0;
+    const ticks = Math.max(1, Math.floor(this.cfg.durations?.[def.id] ?? DEFAULT_DURATIONS[def.id] ?? 1));
+    const multiplier = Math.max(1, Math.floor(this.cfg.multipliers?.[def.id] ?? DEFAULT_MULTIPLIERS[def.id] ?? 20));
 
     this.setState("buying");
 
@@ -229,10 +239,26 @@ export class BotEngine {
       basis: "stake",
       contract_type: def.type,
       currency: this.currency || "USD",
-      duration: 1,
-      duration_unit: "t",
-      barrier: String(barrier),
     };
+
+    if (def.kind === "digit") {
+      // Digit contracts: one tick, digit barrier.
+      contractParams["duration"] = 1;
+      contractParams["duration_unit"] = "t";
+      contractParams["barrier"] = String(barrier);
+    } else if (def.kind === "updown" || def.kind === "reset") {
+      // Rise/Fall, Rise=/Fall= and Reset contracts: short tick duration, NO barrier.
+      contractParams["duration"] = ticks;
+      contractParams["duration_unit"] = "t";
+    } else {
+      // Multipliers: no duration; loss capped by a built-in stop loss.
+      contractParams["multiplier"] = multiplier;
+      contractParams["limit_order"] = {
+        take_profit: roundStake(Math.max(0.1, stake * 0.5)),
+        stop_loss: roundStake(Math.max(0.1, stake * 0.9)),
+      };
+    }
+
 
     try {
       const buyRes: any =
@@ -249,11 +275,18 @@ export class BotEngine {
       const payout = Number(buy?.payout ?? 0);
       const contractId = Number(buy?.contract_id ?? 0) || undefined;
 
-      this.pending = { buyPrice, payout, type: def.type, barrier, contractId };
+      this.pending = { buyPrice, payout, type: def.type, barrier, contractId, kind: def.kind };
       this.setState("awaiting");
-      this.ev.onLog("info", `Bought ${def.short} ${barrier} — stake ${buyPrice.toFixed(2)}`);
+      const detail =
+        def.kind === "digit"
+          ? `barrier ${barrier}`
+          : def.kind === "multiplier"
+            ? `x${multiplier}`
+            : `${ticks} tick${ticks === 1 ? "" : "s"}`;
+      this.ev.onLog("info", `Bought ${def.short} ${detail} — stake ${buyPrice.toFixed(2)}`);
 
-      if (this.cfg.speed === "normal") this.watchContract();
+      // Only digit contracts can be settled locally on the next tick.
+      if (this.cfg.speed === "normal" || def.kind !== "digit") this.watchContract();
     } catch (error: any) {
       this.ev.onLog("error", error?.message || "Trade failed");
       this.setState("idle");

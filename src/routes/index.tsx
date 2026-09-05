@@ -31,7 +31,14 @@ import { cn } from "@/lib/utils";
 import { useInstallApp } from "@/hooks/use-install-app";
 import { authorizeDeriv, roundStake, type DerivWS } from "@/lib/deriv";
 import { BotEngine, type LogEntry, type Stats, type TradeState } from "@/lib/botEngine";
-import { CONTRACTS, MARKETS, RECOMMENDED, SWITCH_MODES, type ContractDefId, type SwitchMode } from "@/lib/contracts";
+import {
+  CONTRACTS,
+  MARKETS,
+  RECOMMENDED,
+  SWITCH_MODES,
+  type ContractDefId,
+  type SwitchMode,
+} from "@/lib/contracts";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -80,6 +87,8 @@ function LowRisker() {
   const [everyTick, setEveryTick] = useState(RECOMMENDED.speed === "tick");
   const [selected, setSelected] = useState<ContractDefId[]>(RECOMMENDED.selected);
   const [barriers, setBarriers] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.barriers });
+  const [durations, setDurations] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.durations });
+  const [multipliers, setMultipliers] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.multipliers });
   const [switchMode, setSwitchMode] = useState<SwitchMode>(RECOMMENDED.switchMode);
   const [switchValue, setSwitchValue] = useState(RECOMMENDED.switchValue);
 
@@ -120,10 +129,25 @@ function LowRisker() {
       speed: (everyTick ? "tick" : "normal") as "tick" | "normal",
       selected,
       barriers,
+      durations,
+      multipliers,
       switchMode,
       switchValue: parseInt(switchValue, 10) || 1,
     }),
-    [symbol, stake, martingale, takeProfit, stopLoss, everyTick, selected, barriers, switchMode, switchValue],
+    [
+      symbol,
+      stake,
+      martingale,
+      takeProfit,
+      stopLoss,
+      everyTick,
+      selected,
+      barriers,
+      durations,
+      multipliers,
+      switchMode,
+      switchValue,
+    ],
   );
 
   useEffect(() => {
@@ -204,6 +228,8 @@ function LowRisker() {
     setEveryTick(RECOMMENDED.speed === "tick");
     setSelected(RECOMMENDED.selected);
     setBarriers({ ...RECOMMENDED.barriers });
+    setDurations({ ...RECOMMENDED.durations });
+    setMultipliers({ ...RECOMMENDED.multipliers });
     setSwitchMode(RECOMMENDED.switchMode);
     setSwitchValue(RECOMMENDED.switchValue);
     toast.success("Recommended low-risk settings applied");
@@ -408,7 +434,8 @@ function LowRisker() {
         <Card className="gap-3 p-4">
           <h2 className="text-sm font-semibold">Low-risk contracts</h2>
           <p className="text-[11px] text-muted-foreground">
-            Only 90%-win-rate digit contracts are available, and barriers are limited to the safe range.
+            Only Deriv's lowest-risk trades are available — high-probability digits, barrier-free Rise/Fall, Reset
+            contracts and capped-loss Multipliers. Every control already starts on its safest setting.
           </p>
           <div className="space-y-2">
             {CONTRACTS.map((c) => {
@@ -439,28 +466,38 @@ function LowRisker() {
                     <Switch checked={on} onCheckedChange={() => toggleContract(c.id)} />
                   </div>
                   {on && (
-                    <div className="mt-3 space-y-2 border-t border-border pt-3">
-                      <Label className="text-[11px]">{c.barrier.label}</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {c.barrier.options.map((b) => (
-                          <button
-                            key={b}
-                            type="button"
-                            onClick={() => setBarriers((prev) => ({ ...prev, [c.id]: b }))}
-                            className={cn(
-                              "numeric size-9 rounded-lg border text-sm transition-colors",
-                              barriers[c.id] === b
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-border bg-background text-foreground",
-                            )}
-                          >
-                            {b}
-                          </button>
-                        ))}
-                        {barriers[c.id] === c.barrier.safest && (
-                          <Badge className="self-center bg-success text-success-foreground">Safest</Badge>
-                        )}
-                      </div>
+                    <div className="mt-3 space-y-3 border-t border-border pt-3">
+                      {c.barrier && (
+                        <OptionRow
+                          label={c.barrier.label}
+                          options={c.barrier.options}
+                          safest={c.barrier.safest}
+                          value={barriers[c.id]}
+                          onSelect={(v) => setBarriers((prev) => ({ ...prev, [c.id]: v }))}
+                        />
+                      )}
+                      {c.duration && (
+                        <OptionRow
+                          label={c.duration.label}
+                          options={c.duration.options}
+                          safest={c.duration.safest}
+                          value={durations[c.id]}
+                          onSelect={(v) => setDurations((prev) => ({ ...prev, [c.id]: v }))}
+                        />
+                      )}
+                      {c.multiplier && (
+                        <OptionRow
+                          label={c.multiplier.label}
+                          options={c.multiplier.options}
+                          safest={c.multiplier.safest}
+                          value={multipliers[c.id]}
+                          onSelect={(v) => setMultipliers((prev) => ({ ...prev, [c.id]: v }))}
+                          prefix="x"
+                        />
+                      )}
+                      {!c.barrier && !c.duration && !c.multiplier && (
+                        <p className="text-[11px] text-muted-foreground">No extra settings needed.</p>
+                      )}
                       <p className="text-[11px] text-muted-foreground">{c.note}</p>
                     </div>
                   )}
@@ -534,8 +571,14 @@ function LowRisker() {
           </div>
           {activeDef && (
             <p className="text-[11px] text-muted-foreground">
-              Trading <span className="text-foreground">{activeDef.name}</span> at barrier{" "}
-              <span className="numeric text-foreground">{barriers[activeDef.id]}</span> — {stats.tradesOnContract} trade
+              Trading <span className="text-foreground">{activeDef.name}</span>{" "}
+              <span className="numeric text-foreground">
+                {activeDef.barrier
+                  ? `barrier ${barriers[activeDef.id]}`
+                  : activeDef.multiplier
+                    ? `x${multipliers[activeDef.id]}`
+                    : `${durations[activeDef.id]} ticks`}
+              </span> — {stats.tradesOnContract} trade
               {stats.tradesOnContract === 1 ? "" : "s"} on this contract
             </p>
           )}
@@ -601,6 +644,47 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         className="numeric"
       />
+    </div>
+  );
+}
+
+function OptionRow({
+  label,
+  options,
+  safest,
+  value,
+  onSelect,
+  prefix = "",
+}: {
+  label: string;
+  options: number[];
+  safest: number;
+  value: number;
+  onSelect: (v: number) => void;
+  prefix?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-[11px]">{label}</Label>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            key={o}
+            type="button"
+            onClick={() => onSelect(o)}
+            className={cn(
+              "numeric h-9 min-w-9 rounded-lg border px-2 text-sm transition-colors",
+              value === o
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background text-foreground",
+            )}
+          >
+            {prefix}
+            {o}
+          </button>
+        ))}
+        {value === safest && <Badge className="self-center bg-success text-success-foreground">Safest</Badge>}
+      </div>
     </div>
   );
 }
