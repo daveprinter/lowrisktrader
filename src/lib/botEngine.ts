@@ -7,6 +7,9 @@ export type TradeState = "idle" | "buying" | "awaiting";
 export type BotConfig = {
   symbol: string;
   stake: number;
+  /** When on, each contract uses its own base stake from `stakes`. */
+  usePerContractStakes?: boolean;
+  stakes?: Record<ContractDefId, number>;
   martingale: number;
   takeProfit: number;
   stopLoss: number;
@@ -68,6 +71,7 @@ export class BotEngine {
   private running = false;
   private tradeState: TradeState = "idle";
   private pending: {
+    defId: ContractDefId;
     buyPrice: number;
     payout: number;
     type: string;
@@ -79,6 +83,8 @@ export class BotEngine {
   private stats: Stats;
   private baseStake: number;
   private currentStake: number;
+  /** Live martingale stake per contract (keyed by contract id). */
+  private currentStakes: Partial<Record<ContractDefId, number>> = {};
   private contractIndex = 0;
   private digits: number[] = [];
   private tickSeen = false;
@@ -116,20 +122,28 @@ export class BotEngine {
     this.ev = ev;
     this.currency = currency;
     this.baseStake = roundStake(cfg.stake);
-    this.currentStake = this.baseStake;
+    this.currentStake = this.baseFor(cfg.selected[0]!);
     this.stats = emptyStats(this.baseStake);
+    this.stats.currentStake = this.currentStake;
     this.stats.activeContract = cfg.selected[0] ?? null;
+  }
+
+  /** Base stake for a contract — its own stake when alternate mode is on. */
+  private baseFor(id: ContractDefId): number {
+    if (this.cfg.usePerContractStakes) {
+      return roundStake(this.cfg.stakes?.[id] ?? this.cfg.stake);
+    }
+    return this.baseStake;
   }
 
   updateConfig(cfg: Partial<BotConfig>) {
     this.cfg = { ...this.cfg, ...cfg };
-    if (cfg.stake !== undefined) {
-      this.baseStake = roundStake(cfg.stake);
-      if (!this.running) {
-        this.currentStake = this.baseStake;
-        this.stats.currentStake = this.baseStake;
-        this.push();
-      }
+    if (cfg.stake !== undefined) this.baseStake = roundStake(cfg.stake);
+    if (!this.running && (cfg.stake !== undefined || cfg.stakes !== undefined || cfg.usePerContractStakes !== undefined)) {
+      this.currentStakes = {};
+      this.currentStake = this.baseFor(this.activeDef().id);
+      this.stats.currentStake = this.currentStake;
+      this.push();
     }
   }
 
