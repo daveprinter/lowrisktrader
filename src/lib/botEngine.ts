@@ -82,6 +82,8 @@ export class BotEngine {
   private stats: Stats;
   private baseStake: number;
   private currentStake: number;
+  /** Live martingale stake per contract (keyed by contract id). */
+  private currentStakes: Partial<Record<ContractDefId, number>> = {};
   private contractIndex = 0;
   private digits: number[] = [];
   private tickSeen = false;
