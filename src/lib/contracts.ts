@@ -213,6 +213,15 @@ export const DEFAULT_BARRIERS: Record<ContractDefId, number> = CONTRACTS.reduce(
   {} as Record<ContractDefId, number>,
 );
 
+/** Default stake for every contract when alternate per-contract stakes are on. */
+export const DEFAULT_STAKES: Record<ContractDefId, string> = CONTRACTS.reduce(
+  (acc, c) => {
+    acc[c.id] = "0.35";
+    return acc;
+  },
+  {} as Record<ContractDefId, string>,
+);
+
 export const DEFAULT_DURATIONS: Record<ContractDefId, number> = CONTRACTS.reduce(
   (acc, c) => {
     acc[c.id] = c.duration?.safest ?? 1;

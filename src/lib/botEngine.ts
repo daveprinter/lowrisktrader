@@ -7,6 +7,9 @@ export type TradeState = "idle" | "buying" | "awaiting";
 export type BotConfig = {
   symbol: string;
   stake: number;
+  /** When on, each contract uses its own base stake from `stakes`. */
+  usePerContractStakes?: boolean;
+  stakes?: Record<ContractDefId, number>;
   martingale: number;
   takeProfit: number;
   stopLoss: number;
