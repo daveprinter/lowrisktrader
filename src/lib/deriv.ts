@@ -181,6 +181,16 @@ export class DerivWS {
     return req_id;
   }
 
+  forgetTicks() {
+    if (this.isOpen) {
+      try {
+        this.socket!.send(JSON.stringify({ forget_all: ["ticks"] }));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   unsubscribeAll() {
     this.subs.clear();
     if (this.isOpen) {
@@ -191,6 +201,7 @@ export class DerivWS {
       }
     }
   }
+
 
   close() {
     this.subs.clear();

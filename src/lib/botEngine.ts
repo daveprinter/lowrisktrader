@@ -81,6 +81,8 @@ export class BotEngine {
   private currentStake: number;
   private contractIndex = 0;
   private digits: number[] = [];
+  private tickSeen = false;
+
 
   constructor(ws: DerivWS, cfg: BotConfig, currency: string, ev: BotEvents) {
     this.ws = ws;
@@ -122,23 +124,84 @@ export class BotEngine {
     this.ev.onState(s);
   }
 
-  /** Subscribe to the tick stream. Safe to call once per connection. */
+  /** Subscribe to the tick stream. Falls back through request shapes until one streams. */
   attachTicks() {
-    this.ws.subscribe(
+    const symbol = this.cfg.symbol;
+    this.tickSeen = false;
+
+    try {
+      this.ws.forgetTicks();
+    } catch {
+      /* ignore */
+    }
+
+    const variants: Record<string, any>[] =
       this.ws.mode === "pat"
-        ? { ticks: this.cfg.symbol, underlying_symbol: this.cfg.symbol }
-        : { ticks: this.cfg.symbol },
-      (data) => {
-        if (data?.error) {
-          this.ev.onLog("error", data.error.message || "Tick stream error");
-          return;
-        }
-        const tick = data?.tick;
-        if (!tick) return;
-        this.handleTick(tick);
-      },
-    );
+        ? [
+            { ticks: symbol, underlying_symbol: symbol },
+            { ticks: 1, underlying_symbol: symbol },
+            { ticks: symbol },
+          ]
+        : [{ ticks: symbol }, { ticks: symbol, underlying_symbol: symbol }];
+
+    const tryVariant = (i: number) => {
+      if (i >= variants.length) {
+        this.ev.onLog("error", `Could not stream prices for ${symbol}. Try another market or reconnect.`);
+        return;
+      }
+      try {
+        this.ws.subscribe(variants[i]!, (data) => {
+          if (data?.error) {
+            if (!this.tickSeen) {
+              this.ev.onLog("info", `Price stream retry (${data.error.message || data.error.code || "error"})`);
+              tryVariant(i + 1);
+            }
+            return;
+          }
+          const tick = data?.tick ?? data?.ticks ?? data?.data?.tick;
+          if (!tick || tick.quote === undefined) return;
+          this.tickSeen = true;
+          this.handleTick(tick);
+        });
+      } catch (error: any) {
+        this.ev.onLog("error", error?.message || "Could not subscribe to prices");
+        return;
+      }
+
+      // If nothing arrives shortly, try the next request shape.
+      setTimeout(() => {
+        if (!this.tickSeen && i + 1 < variants.length) tryVariant(i + 1);
+      }, 6000);
+    };
+
+    tryVariant(0);
+    void this.seedPrice(symbol);
   }
+
+  /** One-off latest price so the market shows something immediately. */
+  private async seedPrice(symbol: string) {
+    try {
+      const res: any = await this.ws.send({
+        ticks_history: symbol,
+        ...(this.ws.mode === "pat" ? { underlying_symbol: symbol } : {}),
+        end: "latest",
+        count: 20,
+        style: "ticks",
+      });
+      const prices: any[] = res?.history?.prices ?? [];
+      const pipSize = res?.pip_size ?? 2;
+      for (const p of prices) {
+        if (this.tickSeen) return;
+        const priceStr = Number(p).toFixed(pipSize);
+        const digit = parseInt(priceStr[priceStr.length - 1]!, 10);
+        this.digits = [...this.digits, digit].slice(-200);
+        this.ev.onTick(digit, priceStr);
+      }
+    } catch {
+      /* optional */
+    }
+  }
+
 
   start() {
     if (this.running) return;
