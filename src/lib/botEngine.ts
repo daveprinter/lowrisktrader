@@ -365,6 +365,7 @@ export class BotEngine {
       const contractId = Number(buy?.contract_id ?? 0) || undefined;
 
       this.pending = { buyPrice, payout, type: def.type, barrier, contractId, kind: def.kind };
+      this.bumpBalance(-buyPrice); // show the stake leaving the account immediately
       this.setState("awaiting");
       const detail =
         def.kind === "digit"
@@ -430,6 +431,8 @@ export class BotEngine {
   }
 
   private processResult(isWin: boolean, profit: number, digit: number, buyPrice: number) {
+    // Stake was subtracted at buy time; settle returns stake + profit.
+    this.bumpBalance(buyPrice + profit);
     this.stats.runs += 1;
     this.stats.tradesOnContract += 1;
     this.stats.profit = Math.round((this.stats.profit + profit) * 100) / 100;
