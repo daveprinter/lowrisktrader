@@ -70,7 +70,7 @@ export class BotEngine {
     payout: number;
     type: string;
     barrier: number;
-    contractId?: number;
+    contractId?: number | undefined;
   } | null = null;
 
   private stats: Stats;

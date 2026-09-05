@@ -82,7 +82,7 @@ export const RECOMMENDED = {
   takeProfit: "2",
   stopLoss: "5",
   symbol: "R_10",
-  speed: "normal" as const,
+  speed: "normal" as "tick" | "normal",
   switchMode: "consecutive_losses" as SwitchMode,
   switchValue: "2",
   selected: ["digitunder", "digitover"] as ContractDefId[],
