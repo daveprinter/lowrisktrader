@@ -13,6 +13,8 @@ export type BotConfig = {
   speed: SpeedMode;
   selected: ContractDefId[];
   barriers: Record<ContractDefId, number>;
+  durations?: Record<ContractDefId, number>;
+  multipliers?: Record<ContractDefId, number>;
   switchMode: SwitchMode;
   switchValue: number;
 };
