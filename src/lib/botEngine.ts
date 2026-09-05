@@ -72,6 +72,7 @@ export class BotEngine {
     payout: number;
     type: string;
     barrier: number;
+    kind: "digit" | "updown" | "reset" | "multiplier";
     contractId?: number | undefined;
   } | null = null;
 
