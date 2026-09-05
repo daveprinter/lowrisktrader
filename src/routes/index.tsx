@@ -199,17 +199,7 @@ function LowRisker() {
       });
       engineRef.current = engine;
       engine.attachTicks();
-
-      if (auth.mode === "legacy") {
-        try {
-          auth.ws.subscribe({ balance: 1 }, (data) => {
-            const b = data?.balance?.balance;
-            if (b !== undefined) setBalance(Number(b));
-          });
-        } catch {
-          /* balance stream optional */
-        }
-      }
+      engine.attachBalance(auth.balance);
 
       auth.ws.onClose = () => {
         setConnected(false);
