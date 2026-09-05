@@ -200,8 +200,13 @@ export class BotEngine {
     this.digits = [...this.digits, digit].slice(-200);
     this.ev.onTick(digit, priceStr);
 
-    // Settle pending trade on THIS tick (every-tick mode settles locally)
-    if (this.cfg.speed === "tick" && this.tradeState === "awaiting" && this.pending) {
+    // Settle pending trade on THIS tick (every-tick mode settles locally, digits only)
+    if (
+      this.cfg.speed === "tick" &&
+      this.tradeState === "awaiting" &&
+      this.pending &&
+      this.pending.kind === "digit"
+    ) {
       const { buyPrice, payout, type, barrier } = this.pending;
       const isWin =
         type === "DIGITUNDER" ? digit < barrier : type === "DIGITOVER" ? digit > barrier : digit !== barrier;
