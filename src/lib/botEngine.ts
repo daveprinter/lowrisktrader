@@ -82,6 +82,32 @@ export class BotEngine {
   private contractIndex = 0;
   private digits: number[] = [];
   private tickSeen = false;
+  private balance: number | null = null;
+  private balanceAttached = false;
+
+  /** Set the starting balance and stream live balance updates from Deriv. */
+  attachBalance(initial: number) {
+    this.balance = Math.round(initial * 100) / 100;
+    this.ev.onBalance(this.balance);
+    if (this.balanceAttached) return;
+    this.balanceAttached = true;
+    try {
+      this.ws.subscribe({ balance: 1 }, (data) => {
+        const b = data?.balance?.balance;
+        if (b === undefined) return;
+        this.balance = Math.round(Number(b) * 100) / 100;
+        this.ev.onBalance(this.balance);
+      });
+    } catch {
+      /* balance stream optional — optimistic updates still apply */
+    }
+  }
+
+  private bumpBalance(delta: number) {
+    if (this.balance === null) return;
+    this.balance = Math.round((this.balance + delta) * 100) / 100;
+    this.ev.onBalance(this.balance);
+  }
 
 
   constructor(ws: DerivWS, cfg: BotConfig, currency: string, ev: BotEvents) {
@@ -339,6 +365,7 @@ export class BotEngine {
       const contractId = Number(buy?.contract_id ?? 0) || undefined;
 
       this.pending = { buyPrice, payout, type: def.type, barrier, contractId, kind: def.kind };
+      this.bumpBalance(-buyPrice); // show the stake leaving the account immediately
       this.setState("awaiting");
       const detail =
         def.kind === "digit"
@@ -404,6 +431,8 @@ export class BotEngine {
   }
 
   private processResult(isWin: boolean, profit: number, digit: number, buyPrice: number) {
+    // Stake was subtracted at buy time; settle returns stake + profit.
+    this.bumpBalance(buyPrice + profit);
     this.stats.runs += 1;
     this.stats.tradesOnContract += 1;
     this.stats.profit = Math.round((this.stats.profit + profit) * 100) / 100;
