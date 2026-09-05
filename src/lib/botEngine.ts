@@ -81,6 +81,8 @@ export class BotEngine {
   private currentStake: number;
   private contractIndex = 0;
   private digits: number[] = [];
+  private tickSeen = false;
+
 
   constructor(ws: DerivWS, cfg: BotConfig, currency: string, ev: BotEvents) {
     this.ws = ws;
