@@ -274,11 +274,18 @@ export class BotEngine {
       const payout = Number(buy?.payout ?? 0);
       const contractId = Number(buy?.contract_id ?? 0) || undefined;
 
-      this.pending = { buyPrice, payout, type: def.type, barrier, contractId };
+      this.pending = { buyPrice, payout, type: def.type, barrier, contractId, kind: def.kind };
       this.setState("awaiting");
-      this.ev.onLog("info", `Bought ${def.short} ${barrier} — stake ${buyPrice.toFixed(2)}`);
+      const detail =
+        def.kind === "digit"
+          ? `barrier ${barrier}`
+          : def.kind === "multiplier"
+            ? `x${multiplier}`
+            : `${ticks} tick${ticks === 1 ? "" : "s"}`;
+      this.ev.onLog("info", `Bought ${def.short} ${detail} — stake ${buyPrice.toFixed(2)}`);
 
-      if (this.cfg.speed === "normal") this.watchContract();
+      // Only digit contracts can be settled locally on the next tick.
+      if (this.cfg.speed === "normal" || def.kind !== "digit") this.watchContract();
     } catch (error: any) {
       this.ev.onLog("error", error?.message || "Trade failed");
       this.setState("idle");
