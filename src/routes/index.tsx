@@ -154,6 +154,15 @@ function LowRisker() {
     engineRef.current?.updateConfig(cfg);
   }, [cfg]);
 
+  // Re-subscribe to prices whenever the market changes.
+  useEffect(() => {
+    if (!connected || !engineRef.current) return;
+    setPrice("—");
+    setDigits([]);
+    engineRef.current.attachTicks();
+  }, [symbol, connected]);
+
+
   useEffect(() => {
     return () => {
       engineRef.current?.stop("Session ended");
