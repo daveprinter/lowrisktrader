@@ -227,7 +227,9 @@ export class BotEngine {
 
     const def = this.activeDef();
     const stake = roundStake(this.currentStake);
-    const barrier = this.cfg.barriers[def.id] ?? def.barrier.safest;
+    const barrier = this.cfg.barriers[def.id] ?? def.barrier?.safest ?? 0;
+    const ticks = Math.max(1, Math.floor(this.cfg.durations?.[def.id] ?? DEFAULT_DURATIONS[def.id] ?? 1));
+    const multiplier = Math.max(1, Math.floor(this.cfg.multipliers?.[def.id] ?? DEFAULT_MULTIPLIERS[def.id] ?? 20));
 
     this.setState("buying");
 
@@ -236,10 +238,26 @@ export class BotEngine {
       basis: "stake",
       contract_type: def.type,
       currency: this.currency || "USD",
-      duration: 1,
-      duration_unit: "t",
-      barrier: String(barrier),
     };
+
+    if (def.kind === "digit") {
+      // Digit contracts: one tick, digit barrier.
+      contractParams["duration"] = 1;
+      contractParams["duration_unit"] = "t";
+      contractParams["barrier"] = String(barrier);
+    } else if (def.kind === "updown" || def.kind === "reset") {
+      // Rise/Fall, Rise=/Fall= and Reset contracts: short tick duration, NO barrier.
+      contractParams["duration"] = ticks;
+      contractParams["duration_unit"] = "t";
+    } else {
+      // Multipliers: no duration; loss capped by a built-in stop loss.
+      contractParams["multiplier"] = multiplier;
+      contractParams["limit_order"] = {
+        take_profit: roundStake(Math.max(0.1, stake * 0.5)),
+        stop_loss: roundStake(Math.max(0.1, stake * 0.9)),
+      };
+    }
+
 
     try {
       const buyRes: any =
