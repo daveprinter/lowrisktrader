@@ -250,8 +250,10 @@ export class BotEngine {
       return;
     }
     this.running = true;
-    this.currentStake = this.baseStake;
-    this.stats.currentStake = this.baseStake;
+    this.currentStakes = {};
+    this.currentStake = this.baseFor(this.activeDef().id);
+    this.currentStakes[this.activeDef().id] = this.currentStake;
+    this.stats.currentStake = this.currentStake;
     this.stats.activeContract = this.activeDef().id;
     this.stats.tradesOnContract = 0;
     this.push();
@@ -279,7 +281,11 @@ export class BotEngine {
     this.contractIndex = (this.contractIndex + 1) % this.cfg.selected.length;
     this.stats.tradesOnContract = 0;
     this.stats.activeContract = this.activeDef().id;
-    this.ev.onLog("info", `Switched to ${this.activeDef().name}`);
+    // Resume this contract's own stake progression (per-contract base when alternate mode is on).
+    this.currentStake = this.currentStakes[this.activeDef().id] ?? this.baseFor(this.activeDef().id);
+    this.currentStakes[this.activeDef().id] = this.currentStake;
+    this.stats.currentStake = this.currentStake;
+    this.ev.onLog("info", `Switched to ${this.activeDef().name} — stake ${this.currentStake.toFixed(2)}`);
   }
 
   private maybeSwitch(isWin: boolean) {
