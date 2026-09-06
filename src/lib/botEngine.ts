@@ -1,5 +1,13 @@
 import { DerivWS, roundStake } from "./deriv";
-import { CONTRACTS, DEFAULT_DURATIONS, DEFAULT_MULTIPLIERS, type ContractDefId, type SwitchMode } from "./contracts";
+import {
+  CONTRACTS,
+  DEFAULT_DURATIONS,
+  DEFAULT_MULTIPLIERS,
+  RECOVERY_CONTRACTS,
+  type ContractDefId,
+  type RecoveryContractId,
+  type SwitchMode,
+} from "./contracts";
 
 export type SpeedMode = "tick" | "normal";
 export type TradeState = "idle" | "buying" | "awaiting";
