@@ -86,6 +86,8 @@ function LowRisker() {
   const [stopLoss, setStopLoss] = useState(RECOMMENDED.stopLoss);
   const [everyTick, setEveryTick] = useState(RECOMMENDED.speed === "tick");
   const [selected, setSelected] = useState<ContractDefId[]>(RECOMMENDED.selected);
+  const [altStakes, setAltStakes] = useState(RECOMMENDED.usePerContractStakes);
+  const [perStakes, setPerStakes] = useState<Record<ContractDefId, string>>({ ...RECOMMENDED.stakes });
   const [barriers, setBarriers] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.barriers });
   const [durations, setDurations] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.durations });
   const [multipliers, setMultipliers] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.multipliers });
