@@ -73,43 +73,26 @@ const emptyStats: Stats = {
 };
 
 function LowRisker() {
-  const [token, setToken] = usePersistentState("token", "");
+  const [token, setToken] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [account, setAccount] = useState<{ loginid: string; currency: string; mode: string } | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
 
-  const [symbol, setSymbol] = usePersistentState("symbol", RECOMMENDED.symbol);
-  const [stake, setStake] = usePersistentState("stake", RECOMMENDED.stake);
-  const [martingale, setMartingale] = usePersistentState("martingale", RECOMMENDED.martingale);
-  const [takeProfit, setTakeProfit] = usePersistentState("takeProfit", RECOMMENDED.takeProfit);
-  const [stopLoss, setStopLoss] = usePersistentState("stopLoss", RECOMMENDED.stopLoss);
-  const [everyTick, setEveryTick] = usePersistentState("everyTick", RECOMMENDED.speed === "tick");
-  const [selected, setSelected] = usePersistentState<ContractDefId[]>("selected", RECOMMENDED.selected);
-  const [altStakes, setAltStakes] = usePersistentState("altStakes", RECOMMENDED.usePerContractStakes);
-  const [perStakes, setPerStakes] = usePersistentState<Record<ContractDefId, string>>("perStakes", {
-    ...RECOMMENDED.stakes,
-  });
-  const [barriers, setBarriers] = usePersistentState<Record<ContractDefId, number>>("barriers", {
-    ...RECOMMENDED.barriers,
-  });
-  const [durations, setDurations] = usePersistentState<Record<ContractDefId, number>>("durations", {
-    ...RECOMMENDED.durations,
-  });
-  const [multipliers, setMultipliers] = usePersistentState<Record<ContractDefId, number>>("multipliers", {
-    ...RECOMMENDED.multipliers,
-  });
-  const [switchMode, setSwitchMode] = usePersistentState<SwitchMode>("switchMode", RECOMMENDED.switchMode);
-  const [switchValue, setSwitchValue] = usePersistentState("switchValue", RECOMMENDED.switchValue);
-  const [recoveryMode, setRecoveryMode] = usePersistentState("recoveryMode", RECOVERY_DEFAULTS.recoveryMode);
-  const [recoveryContract, setRecoveryContract] = usePersistentState<RecoveryContractId>(
-    "recoveryContract",
-    RECOVERY_DEFAULTS.recoveryContract,
-  );
-  const [recoveryPrediction, setRecoveryPrediction] = usePersistentState(
-    "recoveryPrediction",
-    RECOVERY_DEFAULTS.recoveryPrediction,
-  );
+  const [symbol, setSymbol] = useState(RECOMMENDED.symbol);
+  const [stake, setStake] = useState(RECOMMENDED.stake);
+  const [martingale, setMartingale] = useState(RECOMMENDED.martingale);
+  const [takeProfit, setTakeProfit] = useState(RECOMMENDED.takeProfit);
+  const [stopLoss, setStopLoss] = useState(RECOMMENDED.stopLoss);
+  const [everyTick, setEveryTick] = useState(RECOMMENDED.speed === "tick");
+  const [selected, setSelected] = useState<ContractDefId[]>(RECOMMENDED.selected);
+  const [altStakes, setAltStakes] = useState(RECOMMENDED.usePerContractStakes);
+  const [perStakes, setPerStakes] = useState<Record<ContractDefId, string>>({ ...RECOMMENDED.stakes });
+  const [barriers, setBarriers] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.barriers });
+  const [durations, setDurations] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.durations });
+  const [multipliers, setMultipliers] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.multipliers });
+  const [switchMode, setSwitchMode] = useState<SwitchMode>(RECOMMENDED.switchMode);
+  const [switchValue, setSwitchValue] = useState(RECOMMENDED.switchValue);
 
   const [running, setRunning] = useState(false);
   const [tradeState, setTradeState] = useState<TradeState>("idle");
