@@ -1,14 +1,18 @@
-# Welcome to your Lovable project
+# Deriv Contract Explorer
+
+Visit deriv and learn how many contracts they offer and how their proposals are send ,all contract types and tell me the less risky ones with the settings put in consideration terms of barriers or the settings they require for each contract
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://lowrisktrader.lovable.app
+
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/90935bd0-ed73-47f6-ae12-d29787df6b16).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +24,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
