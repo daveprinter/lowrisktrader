@@ -250,8 +250,10 @@ export class BotEngine {
       return;
     }
     this.running = true;
-    this.currentStake = this.baseStake;
-    this.stats.currentStake = this.baseStake;
+    this.currentStakes = {};
+    this.currentStake = this.baseFor(this.activeDef().id);
+    this.currentStakes[this.activeDef().id] = this.currentStake;
+    this.stats.currentStake = this.currentStake;
     this.stats.activeContract = this.activeDef().id;
     this.stats.tradesOnContract = 0;
     this.push();
@@ -279,7 +281,11 @@ export class BotEngine {
     this.contractIndex = (this.contractIndex + 1) % this.cfg.selected.length;
     this.stats.tradesOnContract = 0;
     this.stats.activeContract = this.activeDef().id;
-    this.ev.onLog("info", `Switched to ${this.activeDef().name}`);
+    // Resume this contract's own stake progression (per-contract base when alternate mode is on).
+    this.currentStake = this.currentStakes[this.activeDef().id] ?? this.baseFor(this.activeDef().id);
+    this.currentStakes[this.activeDef().id] = this.currentStake;
+    this.stats.currentStake = this.currentStake;
+    this.ev.onLog("info", `Switched to ${this.activeDef().name} — stake ${this.currentStake.toFixed(2)}`);
   }
 
   private maybeSwitch(isWin: boolean) {
@@ -311,13 +317,13 @@ export class BotEngine {
       this.pending &&
       this.pending.kind === "digit"
     ) {
-      const { buyPrice, payout, type, barrier } = this.pending;
+      const { buyPrice, payout, type, barrier, defId } = this.pending;
       const isWin =
         type === "DIGITUNDER" ? digit < barrier : type === "DIGITOVER" ? digit > barrier : digit !== barrier;
       const profit = isWin ? payout - buyPrice : -buyPrice;
       this.pending = null;
       this.setState("idle");
-      this.processResult(isWin, profit, digit, buyPrice);
+      this.processResult(isWin, profit, digit, buyPrice, defId);
     }
 
     // Auto-trade on the SAME tick
@@ -378,7 +384,7 @@ export class BotEngine {
       const payout = Number(buy?.payout ?? 0);
       const contractId = Number(buy?.contract_id ?? 0) || undefined;
 
-      this.pending = { buyPrice, payout, type: def.type, barrier, contractId, kind: def.kind };
+      this.pending = { defId: def.id, buyPrice, payout, type: def.type, barrier, contractId, kind: def.kind };
       this.bumpBalance(-buyPrice); // show the stake leaving the account immediately
       this.setState("awaiting");
       const detail =
@@ -437,14 +443,15 @@ export class BotEngine {
       const profit = Number(poc.profit ?? 0);
       const isWin = profit >= 0;
       const buyPrice = Number(poc.buy_price ?? this.pending.buyPrice);
+      const defId = this.pending.defId;
       const digit = this.digits[this.digits.length - 1] ?? -1;
       this.pending = null;
       this.setState("idle");
-      this.processResult(isWin, profit, digit, buyPrice);
+      this.processResult(isWin, profit, digit, buyPrice, defId);
     });
   }
 
-  private processResult(isWin: boolean, profit: number, digit: number, buyPrice: number) {
+  private processResult(isWin: boolean, profit: number, digit: number, buyPrice: number, defId: ContractDefId) {
     // Stake was subtracted at buy time; settle returns stake + profit.
     this.bumpBalance(buyPrice + profit);
     this.stats.runs += 1;
@@ -466,14 +473,17 @@ export class BotEngine {
       `${isWin ? "WON" : "LOST"} ${profit >= 0 ? "+" : ""}${profit.toFixed(2)} — last digit ${digit} (stake ${buyPrice.toFixed(2)})`,
     );
 
-    // Synchronous martingale update
+    // Synchronous martingale update — tracked per contract so each keeps its own progression.
     const multiplier = this.cfg.martingale;
+    let next = this.currentStakes[defId] ?? this.baseFor(defId);
     if (isWin) {
-      this.currentStake = this.baseStake;
+      next = this.baseFor(defId);
     } else if (!isNaN(multiplier) && multiplier > 1) {
-      this.currentStake = roundStake(this.currentStake * multiplier);
+      next = roundStake(next * multiplier);
     }
-    this.stats.currentStake = this.currentStake;
+    this.currentStakes[defId] = next;
+    this.currentStake = next;
+    this.stats.currentStake = next;
 
     this.maybeSwitch(isWin);
     this.push();
@@ -490,7 +500,9 @@ export class BotEngine {
   resetStats() {
     this.stats = emptyStats(this.baseStake);
     this.stats.activeContract = this.cfg.selected[0] ?? null;
-    this.currentStake = this.baseStake;
+    this.currentStakes = {};
+    this.currentStake = this.baseFor(this.stats.activeContract ?? this.cfg.selected[0]!);
+    this.stats.currentStake = this.currentStake;
     this.push();
   }
 }

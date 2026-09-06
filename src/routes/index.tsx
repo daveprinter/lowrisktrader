@@ -86,6 +86,8 @@ function LowRisker() {
   const [stopLoss, setStopLoss] = useState(RECOMMENDED.stopLoss);
   const [everyTick, setEveryTick] = useState(RECOMMENDED.speed === "tick");
   const [selected, setSelected] = useState<ContractDefId[]>(RECOMMENDED.selected);
+  const [altStakes, setAltStakes] = useState(RECOMMENDED.usePerContractStakes);
+  const [perStakes, setPerStakes] = useState<Record<ContractDefId, string>>({ ...RECOMMENDED.stakes });
   const [barriers, setBarriers] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.barriers });
   const [durations, setDurations] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.durations });
   const [multipliers, setMultipliers] = useState<Record<ContractDefId, number>>({ ...RECOMMENDED.multipliers });
@@ -123,6 +125,14 @@ function LowRisker() {
     () => ({
       symbol,
       stake: roundStake(parseFloat(stake) || 0.35),
+      usePerContractStakes: altStakes,
+      stakes: CONTRACTS.reduce(
+        (acc, c) => {
+          acc[c.id] = roundStake(parseFloat(perStakes[c.id] ?? "") || 0.35);
+          return acc;
+        },
+        {} as Record<ContractDefId, number>,
+      ),
       martingale: parseFloat(martingale) || 1,
       takeProfit: parseFloat(takeProfit) || 0,
       stopLoss: parseFloat(stopLoss) || 0,
@@ -137,6 +147,8 @@ function LowRisker() {
     [
       symbol,
       stake,
+      altStakes,
+      perStakes,
       martingale,
       takeProfit,
       stopLoss,
@@ -226,6 +238,8 @@ function LowRisker() {
     setStopLoss(RECOMMENDED.stopLoss);
     setEveryTick(RECOMMENDED.speed === "tick");
     setSelected(RECOMMENDED.selected);
+    setAltStakes(RECOMMENDED.usePerContractStakes);
+    setPerStakes({ ...RECOMMENDED.stakes });
     setBarriers({ ...RECOMMENDED.barriers });
     setDurations({ ...RECOMMENDED.durations });
     setMultipliers({ ...RECOMMENDED.multipliers });
@@ -387,10 +401,28 @@ function LowRisker() {
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Stake" value={stake} onChange={setStake} step="0.01" />
+            <Field
+              label={altStakes ? "Default stake (fallback)" : "Stake"}
+              value={stake}
+              onChange={setStake}
+              step="0.01"
+            />
             <Field label="Martingale ×" value={martingale} onChange={setMartingale} step="0.1" />
             <Field label="Take profit" value={takeProfit} onChange={setTakeProfit} step="0.1" />
             <Field label="Stop loss" value={stopLoss} onChange={setStopLoss} step="0.1" />
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-secondary p-3">
+            <div className="pr-3">
+              <p className="flex items-center gap-1 text-sm font-medium">
+                <Wallet className="size-4 text-primary" /> Different stake per contract
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {altStakes
+                  ? "On — set each contract's stake on its card below."
+                  : "Off — every contract uses the same stake."}
+              </p>
+            </div>
+            <Switch checked={altStakes} onCheckedChange={setAltStakes} />
           </div>
           <p className="text-[11px] text-muted-foreground">
             Stakes are always rounded to 2 decimals — next stake after a loss:{" "}
@@ -496,6 +528,14 @@ function LowRisker() {
                       )}
                       {!c.barrier && !c.duration && !c.multiplier && (
                         <p className="text-[11px] text-muted-foreground">No extra settings needed.</p>
+                      )}
+                      {altStakes && (
+                        <Field
+                          label={`${c.short} stake`}
+                          value={perStakes[c.id] ?? "0.35"}
+                          onChange={(v) => setPerStakes((prev) => ({ ...prev, [c.id]: v }))}
+                          step="0.01"
+                        />
                       )}
                       <p className="text-[11px] text-muted-foreground">{c.note}</p>
                     </div>

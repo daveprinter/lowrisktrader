@@ -249,6 +249,8 @@ export const RECOMMENDED = {
   switchMode: "consecutive_losses" as SwitchMode,
   switchValue: "2",
   selected: ["digitunder", "digitover"] as ContractDefId[],
+  usePerContractStakes: false,
+  stakes: { ...DEFAULT_STAKES },
   barriers: { ...DEFAULT_BARRIERS },
   durations: { ...DEFAULT_DURATIONS },
   multipliers: { ...DEFAULT_MULTIPLIERS },
