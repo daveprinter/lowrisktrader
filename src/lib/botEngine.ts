@@ -20,6 +20,10 @@ export type BotConfig = {
   multipliers?: Record<ContractDefId, number>;
   switchMode: SwitchMode;
   switchValue: number;
+  /** Recovery mode — after a loss, trade this simple contract until it wins. */
+  recoveryMode?: boolean;
+  recoveryContract?: RecoveryContractId;
+  recoveryPrediction?: number;
 };
 
 export type LogEntry = {
