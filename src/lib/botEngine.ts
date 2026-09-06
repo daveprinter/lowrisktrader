@@ -317,13 +317,13 @@ export class BotEngine {
       this.pending &&
       this.pending.kind === "digit"
     ) {
-      const { buyPrice, payout, type, barrier } = this.pending;
+      const { buyPrice, payout, type, barrier, defId } = this.pending;
       const isWin =
         type === "DIGITUNDER" ? digit < barrier : type === "DIGITOVER" ? digit > barrier : digit !== barrier;
       const profit = isWin ? payout - buyPrice : -buyPrice;
       this.pending = null;
       this.setState("idle");
-      this.processResult(isWin, profit, digit, buyPrice);
+      this.processResult(isWin, profit, digit, buyPrice, defId);
     }
 
     // Auto-trade on the SAME tick
@@ -443,14 +443,15 @@ export class BotEngine {
       const profit = Number(poc.profit ?? 0);
       const isWin = profit >= 0;
       const buyPrice = Number(poc.buy_price ?? this.pending.buyPrice);
+      const defId = this.pending.defId;
       const digit = this.digits[this.digits.length - 1] ?? -1;
       this.pending = null;
       this.setState("idle");
-      this.processResult(isWin, profit, digit, buyPrice);
+      this.processResult(isWin, profit, digit, buyPrice, defId);
     });
   }
 
-  private processResult(isWin: boolean, profit: number, digit: number, buyPrice: number) {
+  private processResult(isWin: boolean, profit: number, digit: number, buyPrice: number, defId: ContractDefId) {
     // Stake was subtracted at buy time; settle returns stake + profit.
     this.bumpBalance(buyPrice + profit);
     this.stats.runs += 1;
