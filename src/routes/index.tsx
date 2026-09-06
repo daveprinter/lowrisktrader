@@ -125,6 +125,14 @@ function LowRisker() {
     () => ({
       symbol,
       stake: roundStake(parseFloat(stake) || 0.35),
+      usePerContractStakes: altStakes,
+      stakes: CONTRACTS.reduce(
+        (acc, c) => {
+          acc[c.id] = roundStake(parseFloat(perStakes[c.id] ?? "") || 0.35);
+          return acc;
+        },
+        {} as Record<ContractDefId, number>,
+      ),
       martingale: parseFloat(martingale) || 1,
       takeProfit: parseFloat(takeProfit) || 0,
       stopLoss: parseFloat(stopLoss) || 0,
@@ -139,6 +147,8 @@ function LowRisker() {
     [
       symbol,
       stake,
+      altStakes,
+      perStakes,
       martingale,
       takeProfit,
       stopLoss,
