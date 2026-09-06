@@ -384,7 +384,7 @@ export class BotEngine {
       const payout = Number(buy?.payout ?? 0);
       const contractId = Number(buy?.contract_id ?? 0) || undefined;
 
-      this.pending = { buyPrice, payout, type: def.type, barrier, contractId, kind: def.kind };
+      this.pending = { defId: def.id, buyPrice, payout, type: def.type, barrier, contractId, kind: def.kind };
       this.bumpBalance(-buyPrice); // show the stake leaving the account immediately
       this.setState("awaiting");
       const detail =
