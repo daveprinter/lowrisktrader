@@ -282,6 +282,14 @@ export class BotEngine {
     this.ev.onStopped(reason);
   }
 
+  /** The recovery contract, when recovery mode is on and the last trade lost. */
+  private recoveryDef() {
+    if (!this.cfg.recoveryMode) return null;
+    if (this.stats.consecutiveLosses < 1) return null;
+    const id: RecoveryContractId = this.cfg.recoveryContract ?? "even";
+    return RECOVERY_CONTRACTS.find((r) => r.id === id) ?? null;
+  }
+
   private activeDef() {
     const list = this.cfg.selected;
     const id = list[this.contractIndex % list.length];
@@ -348,26 +356,32 @@ export class BotEngine {
     if (this.tradeState !== "idle" || !this.running) return;
 
     const def = this.activeDef();
+    const rec = this.recoveryDef();
     const stake = roundStake(this.currentStake);
-    const barrier = this.cfg.barriers[def.id] ?? def.barrier?.safest ?? 0;
-    const ticks = Math.max(1, Math.floor(this.cfg.durations?.[def.id] ?? DEFAULT_DURATIONS[def.id] ?? 1));
+    const barrier = rec
+      ? Math.max(0, Math.min(9, Math.floor(this.cfg.recoveryPrediction ?? 0)))
+      : (this.cfg.barriers[def.id] ?? def.barrier?.safest ?? 0);
+    const ticks = rec ? 5 : Math.max(1, Math.floor(this.cfg.durations?.[def.id] ?? DEFAULT_DURATIONS[def.id] ?? 1));
     const multiplier = Math.max(1, Math.floor(this.cfg.multipliers?.[def.id] ?? DEFAULT_MULTIPLIERS[def.id] ?? 20));
+    const type = rec ? rec.type : def.type;
+    const kind: "digit" | "updown" | "reset" | "multiplier" = rec ? rec.kind : def.kind;
+    const label = rec ? `Recovery ${rec.label}` : def.short;
 
     this.setState("buying");
 
     const contractParams: Record<string, any> = {
       amount: stake,
       basis: "stake",
-      contract_type: def.type,
+      contract_type: type,
       currency: this.currency || "USD",
     };
 
-    if (def.kind === "digit") {
+    if (kind === "digit") {
       // Digit contracts: one tick, digit barrier.
       contractParams["duration"] = 1;
       contractParams["duration_unit"] = "t";
-      contractParams["barrier"] = String(barrier);
-    } else if (def.kind === "updown" || def.kind === "reset") {
+      if (rec ? rec.needsPrediction : true) contractParams["barrier"] = String(barrier);
+    } else if (kind === "updown" || kind === "reset") {
       // Rise/Fall, Rise=/Fall= and Reset contracts: short tick duration, NO barrier.
       contractParams["duration"] = ticks;
       contractParams["duration_unit"] = "t";
@@ -396,19 +410,30 @@ export class BotEngine {
       const payout = Number(buy?.payout ?? 0);
       const contractId = Number(buy?.contract_id ?? 0) || undefined;
 
-      this.pending = { defId: def.id, buyPrice, payout, type: def.type, barrier, contractId, kind: def.kind };
+      const settleLocally = !rec && kind === "digit";
+      this.pending = {
+        defId: def.id,
+        buyPrice,
+        payout,
+        type,
+        barrier,
+        contractId,
+        kind: settleLocally ? "digit" : kind === "digit" ? "reset" : kind,
+      };
       this.bumpBalance(-buyPrice); // show the stake leaving the account immediately
       this.setState("awaiting");
       const detail =
-        def.kind === "digit"
-          ? `barrier ${barrier}`
-          : def.kind === "multiplier"
+        kind === "digit"
+          ? rec && !rec.needsPrediction
+            ? ""
+            : `barrier ${barrier}`
+          : kind === "multiplier"
             ? `x${multiplier}`
             : `${ticks} tick${ticks === 1 ? "" : "s"}`;
-      this.ev.onLog("info", `Bought ${def.short} ${detail} — stake ${buyPrice.toFixed(2)}`);
+      this.ev.onLog("info", `Bought ${label} ${detail} — stake ${buyPrice.toFixed(2)}`);
 
-      // Only digit contracts can be settled locally on the next tick.
-      if (this.cfg.speed === "normal" || def.kind !== "digit") this.watchContract();
+      // Only plain digit contracts can be settled locally on the next tick.
+      if (this.cfg.speed === "normal" || !settleLocally) this.watchContract();
     } catch (error: any) {
       this.ev.onLog("error", error?.message || "Trade failed");
       this.setState("idle");
