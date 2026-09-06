@@ -238,6 +238,8 @@ function LowRisker() {
     setStopLoss(RECOMMENDED.stopLoss);
     setEveryTick(RECOMMENDED.speed === "tick");
     setSelected(RECOMMENDED.selected);
+    setAltStakes(RECOMMENDED.usePerContractStakes);
+    setPerStakes({ ...RECOMMENDED.stakes });
     setBarriers({ ...RECOMMENDED.barriers });
     setDurations({ ...RECOMMENDED.durations });
     setMultipliers({ ...RECOMMENDED.multipliers });
@@ -399,10 +401,28 @@ function LowRisker() {
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Stake" value={stake} onChange={setStake} step="0.01" />
+            <Field
+              label={altStakes ? "Default stake (fallback)" : "Stake"}
+              value={stake}
+              onChange={setStake}
+              step="0.01"
+            />
             <Field label="Martingale ×" value={martingale} onChange={setMartingale} step="0.1" />
             <Field label="Take profit" value={takeProfit} onChange={setTakeProfit} step="0.1" />
             <Field label="Stop loss" value={stopLoss} onChange={setStopLoss} step="0.1" />
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-secondary p-3">
+            <div className="pr-3">
+              <p className="flex items-center gap-1 text-sm font-medium">
+                <Wallet className="size-4 text-primary" /> Different stake per contract
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {altStakes
+                  ? "On — set each contract's stake on its card below."
+                  : "Off — every contract uses the same stake."}
+              </p>
+            </div>
+            <Switch checked={altStakes} onCheckedChange={setAltStakes} />
           </div>
           <p className="text-[11px] text-muted-foreground">
             Stakes are always rounded to 2 decimals — next stake after a loss:{" "}
