@@ -255,3 +255,33 @@ export const RECOMMENDED = {
   durations: { ...DEFAULT_DURATIONS },
   multipliers: { ...DEFAULT_MULTIPLIERS },
 };
+
+/** Recovery mode — a single simple contract used to win back after a loss. */
+export type RecoveryContractId = "even" | "odd" | "rise" | "fall" | "over" | "under";
+
+export type RecoveryDef = {
+  id: RecoveryContractId;
+  label: string;
+  type: "DIGITEVEN" | "DIGITODD" | "CALL" | "PUT" | "DIGITOVER" | "DIGITUNDER";
+  kind: "digit" | "updown";
+  /** Over / Under need a digit prediction */
+  needsPrediction: boolean;
+  /** Safest prediction when one is needed */
+  defaultPrediction?: number;
+  hint: string;
+};
+
+export const RECOVERY_CONTRACTS: RecoveryDef[] = [
+  { id: "even", label: "Even", type: "DIGITEVEN", kind: "digit", needsPrediction: false, hint: "Wins when the last digit is even." },
+  { id: "odd", label: "Odd", type: "DIGITODD", kind: "digit", needsPrediction: false, hint: "Wins when the last digit is odd." },
+  { id: "rise", label: "Rise", type: "CALL", kind: "updown", needsPrediction: false, hint: "Wins when the price ends higher." },
+  { id: "fall", label: "Fall", type: "PUT", kind: "updown", needsPrediction: false, hint: "Wins when the price ends lower." },
+  { id: "over", label: "Over", type: "DIGITOVER", kind: "digit", needsPrediction: true, defaultPrediction: 0, hint: "Wins when the last digit is above your prediction." },
+  { id: "under", label: "Under", type: "DIGITUNDER", kind: "digit", needsPrediction: true, defaultPrediction: 9, hint: "Wins when the last digit is below your prediction." },
+];
+
+export const RECOVERY_DEFAULTS = {
+  recoveryMode: false,
+  recoveryContract: "even" as RecoveryContractId,
+  recoveryPrediction: "9",
+};
