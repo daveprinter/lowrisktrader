@@ -473,14 +473,17 @@ export class BotEngine {
       `${isWin ? "WON" : "LOST"} ${profit >= 0 ? "+" : ""}${profit.toFixed(2)} — last digit ${digit} (stake ${buyPrice.toFixed(2)})`,
     );
 
-    // Synchronous martingale update
+    // Synchronous martingale update — tracked per contract so each keeps its own progression.
     const multiplier = this.cfg.martingale;
+    let next = this.currentStakes[defId] ?? this.baseFor(defId);
     if (isWin) {
-      this.currentStake = this.baseStake;
+      next = this.baseFor(defId);
     } else if (!isNaN(multiplier) && multiplier > 1) {
-      this.currentStake = roundStake(this.currentStake * multiplier);
+      next = roundStake(next * multiplier);
     }
-    this.stats.currentStake = this.currentStake;
+    this.currentStakes[defId] = next;
+    this.currentStake = next;
+    this.stats.currentStake = next;
 
     this.maybeSwitch(isWin);
     this.push();
@@ -497,7 +500,9 @@ export class BotEngine {
   resetStats() {
     this.stats = emptyStats(this.baseStake);
     this.stats.activeContract = this.cfg.selected[0] ?? null;
-    this.currentStake = this.baseStake;
+    this.currentStakes = {};
+    this.currentStake = this.baseFor(this.stats.activeContract ?? this.cfg.selected[0]!);
+    this.stats.currentStake = this.currentStake;
     this.push();
   }
 }
