@@ -529,6 +529,14 @@ function LowRisker() {
                       {!c.barrier && !c.duration && !c.multiplier && (
                         <p className="text-[11px] text-muted-foreground">No extra settings needed.</p>
                       )}
+                      {altStakes && (
+                        <Field
+                          label={`${c.short} stake`}
+                          value={perStakes[c.id] ?? "0.35"}
+                          onChange={(v) => setPerStakes((prev) => ({ ...prev, [c.id]: v }))}
+                          step="0.01"
+                        />
+                      )}
                       <p className="text-[11px] text-muted-foreground">{c.note}</p>
                     </div>
                   )}
